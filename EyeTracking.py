@@ -6,14 +6,19 @@ from matplotlib import pyplot as plt
 import ffmpeg
 import skvideo.io
 videosFilePath = 'D:/Juggling/JSM/Juggling0003_06142020/EyeTracking'
-vidfps = [25,90,90]
+#vidfps = [27,94,95]
 worldVideoName = 'world'
 eye1VideoName = 'eye0'
 eye2VideoName = 'eye1'
 videoNames  = [worldVideoName, eye1VideoName, eye2VideoName]
+timestampWorld = np.load(videosFilePath+'/'+videoNames[0]+'_timestamps.npy')
+timestampEye0 = np.load(videosFilePath+'/'+videoNames[1]+'_timestamps.npy')
+timestampEye1 = np.load(videosFilePath+'/'+videoNames[2]+'_timestamps.npy')
+vidfps = [(1/(np.average(np.diff(timestampWorld)))),(1/(np.average(np.diff(timestampEye0)))),(1/(np.average(np.diff(timestampEye1))))]
 def reEncodeVids(videosFilePath,videoNames, vidfps):
     #video_resolution = cam_views
     for ii in range(len(videoNames)):
+        
         vidcap = cv2.VideoCapture(videosFilePath+'/'+videoNames[ii]+'.mp4')#Open video
         vidWidth  = vidcap.get(cv2.CAP_PROP_FRAME_WIDTH) #Get video height
         vidHeight = vidcap.get(cv2.CAP_PROP_FRAME_HEIGHT) #Get video width
@@ -23,13 +28,15 @@ def reEncodeVids(videosFilePath,videoNames, vidfps):
         frame_count = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT)) #find frame count of video 
         vidlength = range(int(frame_count)) #Create list for loop
         #writer = cv2.VideoWriter(videosFilePath+'/'+videoNames[ii]+'_f.mp4', fourcc, vidfps[ii], (int(vidWidth),int(vidHeight)))
-        writer = skvideo.io.FFmpegWriter(videosFilePath+'/'+videoNames[ii]+'_f.mp4',inputdict={ '-r' : str(vidfps[ii])  },  outputdict={
-        #'-pix_fmt': 'bgr24',
+        writer = skvideo.io.FFmpegWriter(videosFilePath+'/'+videoNames[ii]+'_f.mp4',inputdict={
+        '-pix_fmt': 'bgr24',
+        #'-crf': '0',
+        '-r' : str(vidfps[ii])},
+        outputdict={
         '-vcodec': 'h264_nvenc',  #use the h.264 codec
-        '-crf': '0',           #set the constant rate factor to 0, which is lossless
+        '-b:v': '60000k',
+        '-crf': '1',           #set the constant rate factor to 0, which is lossless
         '-r' : str(vidfps[ii])  
-           #the slower the better compression, in princple, try 
-                         #other options see https://trac.ffmpeg.org/wiki/Encode/H.264
         }) 
         
         print(vidlength)
@@ -109,7 +116,7 @@ def trimVids(videosFilePath,videoNames, startFlashFrame,endFlashFrame):
         node1_1 = input1.trim(start_frame=startFlashFrame[ii],end_frame=endFlashFrame[ii]).setpts('PTS-STARTPTS')#Trim video based on the frame numbers
         node1_1.output(videosFilePath+'/'+videoNames[ii]+'_f_c.mp4').run()#Save to output folder
 
-#trimVids(videosFilePath,videoNames, startFlashFrame, endFlashFrame)
+trimVids(videosFilePath,videoNames, startFlashFrame, endFlashFrame)
 
 def saveTimeStamps(videosFilePath,videoNames): 
     '''
@@ -121,18 +128,18 @@ def saveTimeStamps(videosFilePath,videoNames):
     outputRightEye = videosFilePath +'/eye0_timestamps.txt'
     outputLeftEye = videosFilePath +'/eye1_timestamps.txt'
     '''
-    outputCam_views = [outputWorldView, outputRightEye, outputLeftEye]
+    #outputCam_views = [outputWorldView, outputRightEye, outputLeftEye]
     for ii in range(len(videoNames)):
         timestamps = []
         vidcap = cv2.VideoCapture(videosFilePath+'/'+videoNames[ii]+'_f_c.mp4')#Open video
-        vidLength = range(vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
+        vidLength = range(int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT)))
         vidfps = vidcap.get(cv2.CAP_PROP_FPS)
-        timestamps = vidlength/vidfps
+        timestamps = [x/vidfps for x in vidLength] 
         timestamps = np.array(timestamps)
-        np.savetxt(videosFilePath+'/'+videoNames[ii]+'_timestamps.txt')
+        np.savetxt(videosFilePath+'/'+videoNames[ii]+'_timestamps.txt',timestamps)
 
 
-#saveTimeStamps(videosFilePath,videoNames)
+saveTimeStamps(videosFilePath,videoNames)
 
 
 def ginput(videosFilePath,videoNames):
@@ -154,5 +161,5 @@ def ginput(videosFilePath,videoNames):
             else: # If the frame is not successfully read
                 continue # Continue    
         vidcap.release()
-ginput(videosFilePath, videoNames)
-        
+#ginput(videosFilePath, videoNames)
+
