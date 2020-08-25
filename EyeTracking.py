@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import os
 from matplotlib import pyplot as plt
-
+from matplotlib import animation
 import ffmpeg
 import skvideo.io
 videosFilePath = 'D:/Juggling/JSM/Juggling0003_06142020/EyeTracking'
@@ -94,9 +94,9 @@ def flashDetection(videosFilePath,videoNames):
         
     return startFlashFrame, endFlashFrame
 
-reEncodeVids(videosFilePath,videoNames,vidfps)
+#reEncodeVids(videosFilePath,videoNames,vidfps)
 
-startFlashFrame, endFlashFrame = flashDetection(videosFilePath,videoNames)
+#startFlashFrame, endFlashFrame = flashDetection(videosFilePath,videoNames)
 
 def trimVids(videosFilePath,videoNames, startFlashFrame,endFlashFrame):
     '''
@@ -116,7 +116,7 @@ def trimVids(videosFilePath,videoNames, startFlashFrame,endFlashFrame):
         node1_1 = input1.trim(start_frame=startFlashFrame[ii],end_frame=endFlashFrame[ii]).setpts('PTS-STARTPTS')#Trim video based on the frame numbers
         node1_1.output(videosFilePath+'/'+videoNames[ii]+'_f_c.mp4').run()#Save to output folder
 
-trimVids(videosFilePath,videoNames, startFlashFrame, endFlashFrame)
+#trimVids(videosFilePath,videoNames, startFlashFrame, endFlashFrame)
 
 def saveTimeStamps(videosFilePath,videoNames): 
     '''
@@ -131,6 +131,7 @@ def saveTimeStamps(videosFilePath,videoNames):
     #outputCam_views = [outputWorldView, outputRightEye, outputLeftEye]
     for ii in range(len(videoNames)):
         timestamps = []
+    
         vidcap = cv2.VideoCapture(videosFilePath+'/'+videoNames[ii]+'_f_c.mp4')#Open video
         vidLength = range(int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT)))
         vidfps = vidcap.get(cv2.CAP_PROP_FPS)
@@ -139,7 +140,7 @@ def saveTimeStamps(videosFilePath,videoNames):
         np.savetxt(videosFilePath+'/'+videoNames[ii]+'_timestamps.txt',timestamps)
 
 
-saveTimeStamps(videosFilePath,videoNames)
+#saveTimeStamps(videosFilePath,videoNames)
 
 
 def ginput(videosFilePath,videoNames):
@@ -163,3 +164,103 @@ def ginput(videosFilePath,videoNames):
         vidcap.release()
 #ginput(videosFilePath, videoNames)
 
+def plotVideosTogether(videosFilePath,videoNames):
+    #Open all Video Files
+    worldVidCap = cv2.VideoCapture(videosFilePath+'/'+videoNames[0]+'_f_c.mp4')
+    eye0VidCap = cv2.VideoCapture(videosFilePath+'/'+videoNames[1]+'_f_c.mp4')
+    eye1VidCap = cv2.VideoCapture(videosFilePath+'/'+videoNames[2]+'_f_c.mp4')
+    #Get fps of each video
+    worldfps = worldVidCap.get(cv2.CAP_PROP_FPS)
+    eye0fps = eye0VidCap.get(cv2.CAP_PROP_FPS)
+    eye1fps = eye1VidCap.get(cv2.CAP_PROP_FPS)
+    #Put Video Lengths and FPS into a list
+    vidLengths = [worldVidCap.get(cv2.CAP_PROP_FRAME_COUNT),eye0VidCap.get(cv2.CAP_PROP_FRAME_COUNT),eye1VidCap.get(cv2.CAP_PROP_FRAME_COUNT)]
+    vidFPS = [worldfps, eye0fps,eye1fps]
+   
+    #Read in timestamp files
+    world_timestamps = np.load(videosFilePath+'/'+videoNames[0]+'_timestamps.npy')
+    eye0_timestamps = np.load(videosFilePath+'/'+videoNames[1]+'_timestamps.npy')
+    eye1_timestamps = np.load(videosFilePath+'/'+videoNames[2]+'_timestamps.npy')
+    #Create list for syncing the timestamps
+    syncEye0 = []
+    syncEye1 = []
+    syncEye0TS = []
+    syncEye1TS = []
+    
+    for ii in range(len(world_timestamps)):#Iterate through the video with least timestamps(should always be world view)
+        if ii == 2800:
+            break
+        #Find the value in the eye timstamps list that is closest to each value in world timestamps
+        syncEye0TS.append(min(eye0_timestamps, key=lambda x:abs(x-world_timestamps[ii])))
+        syncEye1TS.append(min(eye1_timestamps, key=lambda y:abs(y-world_timestamps[ii])))
+        if ii%1000 ==0:
+            print(ii)
+    # Multiply by the fps to make a list of the synced frame numbers
+    for xx in syncEye0TS:
+        syncEye0.append(int(xx*eye0fps))
+    for xx in syncEye1TS:
+        syncEye1.append(int(xx*eye1fps))
+    syncWorld = []
+    for xx in world_timestamps:
+        syncWorld.append(int(xx*worldfps))
+    #Intialize the video writer
+    Writer = animation.FFMpegWriter(fps = 10)
+    fig = plt.figure(constrained_layout=False)
+    #Create a plot with the two eye videos on bottom and world on top
+    grid = fig.add_gridspec(2,3)
+    ax1 = fig.add_subplot(grid[0,:])
+    ax2 = fig.add_subplot(grid[1,0])
+    ax3 = fig.add_subplot(grid[1,2])
+    startFrame = 2100
+    endFrame = 2800
+    #Open video writer
+    worldFrame = False
+    eye0Frame = False
+    eye1Frame = False
+    with Writer.saving(fig,videosFilePath+'/'+'World+Eyes.mp4',100):
+        for jj in range(len(eye1_timestamps)): #iterate through length of eye timestamps
+            worldSuccess, worldImage = worldVidCap.read()
+            eye0Success, eye0Image = eye0VidCap.read()
+            eye1Success, eye1Image = eye1VidCap.read()
+            if jj < startFrame: #If the index is before when you want to start 
+                continue   
+            if jj in syncWorld:
+                worldFrame = True              
+            if jj in syncEye0:
+                eye0Frame = True
+            if jj in syncEye1:
+                eye1Frame = True        
+            print(worldFrame,eye0Frame,eye1Frame,'Frame',jj)  
+            if worldFrame ==True and eye1Frame == True and eye0Frame == True:
+                #eye0Image = cv2.flip(eye0Image,0)#Flip the eye
+                worldImage = cv2.cvtColor(worldImage,cv2.COLOR_BGR2RGB)#Make world rgb
+                #Show each image 
+                ax1.imshow(worldImage)
+                ax2.imshow(eye1Image)
+                ax3.imshow(eye0Image)
+                #Write the frame to video
+                Writer.grab_frame()
+                worldFrame = False
+                eye0Frame = False
+                eye1Frame = False
+            if jj == endFrame:
+                break
+            '''elif jj in syncEye0 and jj in syncEye1 and jj in syncWorld:
+             #If the index is in each list of sunced frames
+                #Read the frames
+                worldSuccess, worldImage = worldVidCap.read()
+                eye0Success, eye0Image = eye0VidCap.read()
+                eye1Success, eye1Image = eye1VidCap.read()
+               
+                eye0Image = cv2.flip(eye0Image,0)#Flip the eye
+                worldImage = cv2.cvtColor(worldImage,cv2.COLOR_BGR2RGB)#Make world rgb
+                #Show each image 
+                ax1.imshow(worldImage)
+                ax2.imshow(eye1Image)
+                ax3.imshow(eye0Image)
+                #Write the frame to video
+                Writer.grab_frame()
+            '''
+            
+    print('')
+plotVideosTogether(videosFilePath,videoNames)
