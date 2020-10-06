@@ -5,16 +5,8 @@ from matplotlib import pyplot as plt
 from matplotlib import animation
 import ffmpeg
 import skvideo.io
-videosFilePath = 'D:/Juggling/JSM/Juggling0003_06142020/EyeTracking'
-#vidfps = [27,94,95]
-worldVideoName = 'world'
-eye1VideoName = 'eye0'
-eye2VideoName = 'eye1'
-videoNames  = [worldVideoName, eye1VideoName, eye2VideoName]
-timestampWorld = np.load(videosFilePath+'/'+videoNames[0]+'_timestamps.npy')
-timestampEye0 = np.load(videosFilePath+'/'+videoNames[1]+'_timestamps.npy')
-timestampEye1 = np.load(videosFilePath+'/'+videoNames[2]+'_timestamps.npy')
-vidfps = [(1/(np.average(np.diff(timestampWorld)))),(1/(np.average(np.diff(timestampEye0)))),(1/(np.average(np.diff(timestampEye1))))]
+
+#vidfps = [(1/(np.average(np.diff(timestampWorld)))),(1/(np.average(np.diff(timestampEye0)))),(1/(np.average(np.diff(timestampEye1))))]
 def reEncodeVids(videosFilePath,videoNames, vidfps):
     #video_resolution = cam_views
     for ii in range(len(videoNames)):
@@ -27,27 +19,27 @@ def reEncodeVids(videosFilePath,videoNames, vidfps):
         fourcc = cv2.VideoWriter_fourcc(*'avc1')
         frame_count = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT)) #find frame count of video 
         vidlength = range(int(frame_count)) #Create list for loop
-        #writer = cv2.VideoWriter(videosFilePath+'/'+videoNames[ii]+'_f.mp4', fourcc, vidfps[ii], (int(vidWidth),int(vidHeight)))
-        writer = skvideo.io.FFmpegWriter(videosFilePath+'/'+videoNames[ii]+'_f.mp4',inputdict={
-        '-pix_fmt': 'bgr24',
+        writer = cv2.VideoWriter(videosFilePath+'/'+videoNames[ii]+'_f.mp4', fourcc, vidfps[ii], (int(vidWidth),int(vidHeight)))
+        #writer = skvideo.io.FFmpegWriter(videosFilePath+'/'+videoNames[ii]+'_f.mp4',inputdict={
+        #'-pix_fmt': 'bgr24',
         #'-crf': '0',
-        '-r' : str(vidfps[ii])},
-        outputdict={
-        '-vcodec': 'h264_nvenc',  #use the h.264 codec
-        '-b:v': '60000k',
-        '-crf': '1',           #set the constant rate factor to 0, which is lossless
-        '-r' : str(vidfps[ii])  
-        }) 
+        #'-r' : str(vidfps[ii])},
+        #outputdict={
+       # '-vcodec': 'h264_nvenc',  #use the h.264 codec
+        #'-b:v': '60000k',
+        #'-crf': '0',           #set the constant rate factor to 0, which is lossless
+        #'-r' : str(vidfps[ii])  
+       # }) 
         
         print(vidlength)
         for jj in (vidlength): #Iterates through each frame of video
             success,image = vidcap.read()#reads in frame 
             if success:# If it successfully reads in a frame
-                writer.writeFrame(image)
+                writer.write(image)
             else: # If the frame is not successfully read
                 continue # Continue    
         vidcap.release()
-        writer.close()
+        
 
 def flashDetection(videosFilePath,videoNames):
     '''
@@ -72,13 +64,13 @@ def flashDetection(videosFilePath,videoNames):
             
             success,image = vidcap.read() #read a frame
             if success: #If frame is correctly read
-                if jj < int(vidLength/3): #If the frame is in the first third of video
+                if jj < int(vidLength/2): #If the frame is in the first third of video
                     gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY) #Convert image to greyscale
                     grays.append(np.average(gray))
                     if np.average(gray) > maxfirstGray:#If the average brightness is greater than the threshold
                         maxfirstGray = np.average(gray)#That average brightness becomes the threshold
                         firstFlashFrame = jj#Get the frame number of the brightest frame
-                if jj > int((2*vidLength)/3):
+                if jj > int((vidLength)/2):
                     gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY) #Convert image to greyscale
                     grays.append(np.average(gray))
                     if np.average(gray) > maxsecondGray:#If the average brightness is greater than the threshold
@@ -86,6 +78,7 @@ def flashDetection(videosFilePath,videoNames):
                         secondFlashFrame = jj #Get the frame number of the brightest frame
             else:#If the frame is not correctly read
                 continue#Continue
+        #plt.plot(range(len(grays)),grays)
         print(firstFlashFrame, 'First frame')
         print(secondFlashFrame, 'Second frame')
         startFlashFrame.append(firstFlashFrame)
@@ -263,4 +256,4 @@ def plotVideosTogether(videosFilePath,videoNames):
             '''
             
     print('')
-plotVideosTogether(videosFilePath,videoNames)
+#plotVideosTogether(videosFilePath,videoNames)

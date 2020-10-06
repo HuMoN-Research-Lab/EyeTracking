@@ -1,33 +1,24 @@
 import numpy as np
 import cv2
 from matplotlib import pyplot as  plt
+from scipy.interpolate import interp1d
 
-#Filepaths to the videos
-worldVidPath = 'D:/Juggling/JSM/Juggling0003_06142020/EyeTracking/world_f_c.mp4'
-eye0VidPath =  'D:/Juggling/JSM/Juggling0003_06142020/EyeTracking/eye0_f_c.mp4'
-eye1VidPath =  'D:/Juggling/JSM/Juggling0003_06142020/EyeTracking/eye1_f_c.mp4'
-
-
-#Enter start and end frame
-startFrame = 2100
-endFrame = 2600
-
-def scatteredInterpolantCalibration(worldVidPath,eye0vidPath,eye1VidPath,startFrame,endFrame):
+def scatteredInterpolantCalibrationTrack(videosFilePath, videoNames, startFrame,endFrame):
     kernelOpen=np.ones((5,5))
     kernelClose=np.ones((20,20))
         
 
     #Open a vidcap for each video
-    worldVidCap = cv2.VideoCapture(worldVidPath)
-    eye0VidCap = cv2.VideoCapture(eye0VidPath)
-    eye1VidCap = cv2.VideoCapture(eye1VidPath)
+    worldVidCap = cv2.VideoCapture(videosFilePath+'/'+videoNames[0]+'_f_c.mp4')
+    eye0VidCap = cv2.VideoCapture(eye0VidPath+'/'+videoNames[1]+'_f_c.mp4')
+    eye1VidCap = cv2.VideoCapture(eye1VidPath+'/'+videoNames[2]+'_f_c.mp4')
 
     #Get frame count 
     frame_count = int(worldVidCap.get(cv2.CAP_PROP_FRAME_COUNT))
     vidWidth  = worldVidCap.get(cv2.CAP_PROP_FRAME_WIDTH) #Get video height
     vidHeight = worldVidCap.get(cv2.CAP_PROP_FRAME_HEIGHT) #Get video width
     vidLength = range(frame_count)
-    outputVid = cv2.VideoWriter('D:/Juggling/JSM/Juggling0003_06142020/EyeTracking/Calibration.mp4',-1,30,(int(vidWidth),int(vidHeight)))
+    outputVid = cv2.VideoWriter(videosFilePath + '/Calibration.mp4',-1,30,(int(vidWidth),int(vidHeight)))
     #Set HSV value (Hue, Saturation, Brightness) for color of ball
     lowerBound = np.array([160,135,135])
     upperBound = np.array([180,250,250])
@@ -107,6 +98,8 @@ def scatteredInterpolantCalibration(worldVidPath,eye0vidPath,eye1VidPath,startFr
     worldVidCap.release()
     #Reset worldVidcap
     worldVidCap = cv2.VideoCapture(worldVidPath)              
+    
+    #Plot the points of the ball from the last six frames
     for jj in vidLength:#For the length of the video
         if jj < startFrame:#If frame is before the start of calibration dont do anything
             success,image = worldVidCap.read()
@@ -156,12 +149,20 @@ def scatteredInterpolantCalibration(worldVidPath,eye0vidPath,eye1VidPath,startFr
         
     #imgGrey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     #points = cv2.cornerEigenValsAndVecs(imgGrey,calibCorners)
+    return calibPointXY
 
 
 
+def Interpolate(pupilCenter, calibPointXY, startFrame, endFrame):
 
+    pupilCenterCalib = pupilCenter(startFrame,endFrame)
+    interpoleFuncX = interp1d(pupilCenterCalib(0), calibPointXY(0))
+    interpoleFuncY = interp1d(pupilCenterCalib(1), calibPointXY(1))
+    eyeFocusX = interpoleFuncX(pupilCenter(0))
+    eyeFocusY = interpoleFuncX(pupilCenter(1))
+    eyeFocusCoords = (eyeFocusX,eyeFocusY)
+    
 
-
-
+    return eyeFocusCoords
 
 
