@@ -6,7 +6,7 @@ from matplotlib import animation
 import ffmpeg
 import skvideo.io
 
-#vidfps = [(1/(np.average(np.diff(timestampWorld)))),(1/(np.average(np.diff(timestampEye0)))),(1/(np.average(np.diff(timestampEye1))))]
+
 def reEncodeVids(videosFilePath,videoNames, vidfps):
     #video_resolution = cam_views
     for ii in range(len(videoNames)):
@@ -20,17 +20,7 @@ def reEncodeVids(videosFilePath,videoNames, vidfps):
         frame_count = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT)) #find frame count of video 
         vidlength = range(int(frame_count)) #Create list for loop
         writer = cv2.VideoWriter(videosFilePath+'/'+videoNames[ii]+'_f.mp4', fourcc, vidfps[ii], (int(vidWidth),int(vidHeight)))
-        #writer = skvideo.io.FFmpegWriter(videosFilePath+'/'+videoNames[ii]+'_f.mp4',inputdict={
-        #'-pix_fmt': 'bgr24',
-        #'-crf': '0',
-        #'-r' : str(vidfps[ii])},
-        #outputdict={
-       # '-vcodec': 'h264_nvenc',  #use the h.264 codec
-        #'-b:v': '60000k',
-        #'-crf': '0',           #set the constant rate factor to 0, which is lossless
-        #'-r' : str(vidfps[ii])  
-       # }) 
-        
+           
         print(vidlength)
         for jj in (vidlength): #Iterates through each frame of video
             success,image = vidcap.read()#reads in frame 
@@ -42,11 +32,7 @@ def reEncodeVids(videosFilePath,videoNames, vidfps):
         
 
 def flashDetection(videosFilePath,videoNames):
-    '''
-    worldView = videosFilePath + '/world_f.mp4'
-    rightEye = videosFilePath + '/eye0_f.mp4'
-    leftEye = videosFilePath + '/eye1_f.mp4'
-    cam_views = [worldView, rightEye, leftEye]'''
+    
     startFlashFrame = []
     endFlashFrame = []
     for ii in range(len(videoNames)):
@@ -92,17 +78,7 @@ def flashDetection(videosFilePath,videoNames):
 #startFlashFrame, endFlashFrame = flashDetection(videosFilePath,videoNames)
 
 def trimVids(videosFilePath,videoNames, startFlashFrame,endFlashFrame):
-    '''
-    worldView = videosFilePath + '/world_f.mp4'
-    rightEye = videosFilePath + '/eye0_f.mp4'
-    leftEye = videosFilePath + '/eye1_f.mp4'
-    cam_views = [worldView, rightEye, leftEye]
-    outputWorldView = videosFilePath +'/world_f_c.mp4'
-    outputRightEye = videosFilePath +'/eye0_f_c.mp4'
-    outputLeftEye = videosFilePath +'/eye1_f_c.mp4'
-    
-    outputCam_views = [outputWorldView, outputRightEye, outputLeftEye]
-    '''
+  
     for ii in range(len(videoNames)):
         input1 = ffmpeg.input(videosFilePath+'/'+videoNames[ii]+'_f.mp4')#input for ffmpeg
 
@@ -112,15 +88,7 @@ def trimVids(videosFilePath,videoNames, startFlashFrame,endFlashFrame):
 #trimVids(videosFilePath,videoNames, startFlashFrame, endFlashFrame)
 
 def saveTimeStamps(videosFilePath,videoNames): 
-    '''
-    worldView = videosFilePath + '/world_f_c.mp4'
-    rightEye = videosFilePath + '/eye0_f_c.mp4'
-    leftEye = videosFilePath + '/eye1_f_c.mp4'
-    cam_views = [worldView, rightEye, leftEye]
-    outputWorldView = videosFilePath +'/world_timestamps.txt'
-    outputRightEye = videosFilePath +'/eye0_timestamps.txt'
-    outputLeftEye = videosFilePath +'/eye1_timestamps.txt'
-    '''
+   
     #outputCam_views = [outputWorldView, outputRightEye, outputLeftEye]
     for ii in range(len(videoNames)):
         timestamps = []
@@ -143,7 +111,6 @@ def ginput(videosFilePath,videoNames):
         vidWidth  = vidcap.get(cv2.CAP_PROP_FRAME_WIDTH) #Get video height
         vidHeight = vidcap.get(cv2.CAP_PROP_FRAME_HEIGHT) #Get video width
         video_resolution = (int(vidWidth),int(vidHeight)) #Create variable for video resolution
-        #vidfps = vidfps[ii]
         frame_count = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT)) #find frame count of video 
         vidlength = range(int(frame_count)) #Create list for loop
         for jj in (vidlength): #Iterates through each frame of video
@@ -155,7 +122,7 @@ def ginput(videosFilePath,videoNames):
             else: # If the frame is not successfully read
                 continue # Continue    
         vidcap.release()
-#ginput(videosFilePath, videoNames)
+
 
 def plotVideosTogether(videosFilePath,videoNames):
     #Open all Video Files
@@ -238,22 +205,7 @@ def plotVideosTogether(videosFilePath,videoNames):
                 eye1Frame = False
             if jj == endFrame:
                 break
-            '''elif jj in syncEye0 and jj in syncEye1 and jj in syncWorld:
-             #If the index is in each list of sunced frames
-                #Read the frames
-                worldSuccess, worldImage = worldVidCap.read()
-                eye0Success, eye0Image = eye0VidCap.read()
-                eye1Success, eye1Image = eye1VidCap.read()
-               
-                eye0Image = cv2.flip(eye0Image,0)#Flip the eye
-                worldImage = cv2.cvtColor(worldImage,cv2.COLOR_BGR2RGB)#Make world rgb
-                #Show each image 
-                ax1.imshow(worldImage)
-                ax2.imshow(eye1Image)
-                ax3.imshow(eye0Image)
-                #Write the frame to video
-                Writer.grab_frame()
-            '''
+            
             
     print('')
 #plotVideosTogether(videosFilePath,videoNames)

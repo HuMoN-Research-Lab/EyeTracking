@@ -1,17 +1,31 @@
 import numpy as np
 import cv2
+import math
 from matplotlib import pyplot as  plt
-from scipy.interpolate import interp1d
-
+import scipy.interpolate as interp
+import os
 def scatteredInterpolantCalibrationTrack(videosFilePath, videoNames, startFrame,endFrame):
+    right_clicks = []
+    def mouse_callback(event, x, y, flags, params):
+        
+        #right-click event value is 2
+        if event == 2:
+            
+            #store the coordinates of the right-click event
+            right_clicks.append([x, y])
+
+            #this just verifies that the mouse data is being collected
+            #you probably want to remove this later
+            print (right_clicks)
+        
     kernelOpen=np.ones((5,5))
     kernelClose=np.ones((20,20))
         
 
     #Open a vidcap for each video
     worldVidCap = cv2.VideoCapture(videosFilePath+'/'+videoNames[0]+'_f_c.mp4')
-    eye0VidCap = cv2.VideoCapture(eye0VidPath+'/'+videoNames[1]+'_f_c.mp4')
-    eye1VidCap = cv2.VideoCapture(eye1VidPath+'/'+videoNames[2]+'_f_c.mp4')
+    eye0VidCap = cv2.VideoCapture(videosFilePath+'/'+videoNames[1]+'_f_c.mp4')
+    eye1VidCap = cv2.VideoCapture(videosFilePath+'/'+videoNames[2]+'_f_c.mp4')
 
     #Get frame count 
     frame_count = int(worldVidCap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -45,9 +59,21 @@ def scatteredInterpolantCalibrationTrack(videosFilePath, videoNames, startFrame,
             k=0
             objInFrame = []
             if jj == startFrame:
-                plt.imshow(image)
-                point = plt.ginput(1)
-                point = point[0]
+                #point = plt.ginput(n=1, show_clicks = True)
+                #plt.imshow(image)
+                scale_width = 640 / image.shape[1]
+                scale_height = 480 / image.shape[0]
+                scale = min(scale_width, scale_height)
+                window_width = int(image.shape[1] * scale)
+                window_height = int(image.shape[0] * scale)
+                cv2.namedWindow('image', cv2.WINDOW_NORMAL)
+                cv2.resizeWindow('image', window_width, window_height)
+                cv2.setMouseCallback('image', mouse_callback)
+                cv2.imshow('image', image)
+                cv2.waitKey(0)
+                print(right_clicks)
+                point = right_clicks[0]
+                
                 normPoint = np.sqrt((point[0]**2 + point[1]**2))
                 diffFromPointtoCont = 1000000
                 for ii in range(len(conts)):
@@ -90,14 +116,14 @@ def scatteredInterpolantCalibrationTrack(videosFilePath, videoNames, startFrame,
                 radiusFromLastFrame = radius
                 calibCont = conts[contIndex]
                 cv2.drawContours(image,calibCont,-1,(255,0,0),3)
-        # cv2.imshow('im',image)
-        # cv2.waitKey(200)
+        cv2.imshow('im',image)
+        cv2.waitKey(200)
             
             
-
+    np.save(videosFilePath+'/CalibLocXY.npy',calibPointXY)
     worldVidCap.release()
     #Reset worldVidcap
-    worldVidCap = cv2.VideoCapture(worldVidPath)              
+    worldVidCap = cv2.VideoCapture(videosFilePath+'/'+videoNames[0]+'_f_c.mp4')              
     
     #Plot the points of the ball from the last six frames
     for jj in vidLength:#For the length of the video
@@ -153,16 +179,35 @@ def scatteredInterpolantCalibrationTrack(videosFilePath, videoNames, startFrame,
 
 
 
-def Interpolate(pupilCenter, calibPointXY, startFrame, endFrame):
+def Interpolate(videosFilePath, videoNames,pupilCenter, calibPointXY, startFrame, endFrame):
 
-    pupilCenterCalib = pupilCenter(startFrame,endFrame)
-    interpoleFuncX = interp1d(pupilCenterCalib(0), calibPointXY(0))
-    interpoleFuncY = interp1d(pupilCenterCalib(1), calibPointXY(1))
-    eyeFocusX = interpoleFuncX(pupilCenter(0))
-    eyeFocusY = interpoleFuncX(pupilCenter(1))
-    eyeFocusCoords = (eyeFocusX,eyeFocusY)
+    pupilCenterCalib = pupilCenter[startFrame:endFrame]
+    #interpoleFuncX = interp(pupilCenterCalib[:,0], calibPointXY[:,1])
+    #interpoleFuncY = interp1d(pupilCenterCalib[:,0], calibPointXY[:,1])
+    #eyeFocusX = interpoleFuncX(pupilCenter[:,0])
+    #eyeFocusY = interpoleFuncX(pupilCenter[:,1])
+    interpolator = interp.CloughTocher2DInterpolator(pupilCenter[startFrame:endFrame,:], calibPointXY)
+    #eyeFocusCoords = (eyeFocusX,eyeFocusY)
+    eyeFocusCoords = interpolator(pupilCenter)
+    worldVidCap = cv2.VideoCapture(videosFilePath+'/'+videoNames[0]+'_f_c.mp4')
+    frame_count = int(worldVidCap.get(cv2.CAP_PROP_FRAME_COUNT))
+    vidWidth  = worldVidCap.get(cv2.CAP_PROP_FRAME_WIDTH) #Get video height
+    vidHeight = worldVidCap.get(cv2.CAP_PROP_FRAME_HEIGHT) #Get video width
+    vidLength = range(frame_count)
+    outputVid = cv2.VideoWriter(videosFilePath + '/EyeFocusOnWorld.mp4',-1,120,(int(vidWidth),int(vidHeight)))
+
+    for jj in range(len(eyeFocusCoords)):
+        if math.isnan(eyeFocusCoords[jj,0]):
+            success, image = worldVidCap.read()
+            outputVid.write(image)
+        else:
+            success, image = worldVidCap.read()
+            cv2.circle(image,(int(eyeFocusCoords[jj,0]), int(eyeFocusCoords[jj,1])),radius = 10, color =[0,255,0], thickness =-1)        
+            outputVid.write(image)
+            cv2.imshow('',image)
+            cv2.waitKey(200)
+    np.save(videosFilePath+'/EyeFocusWorld.npy',eyeFocusCoords)
     
-
     return eyeFocusCoords
 
 
